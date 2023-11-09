@@ -436,11 +436,14 @@ class VoiceFixCog(LionCog):
             return
 
         hook = discord.Webhook.from_url(webhook, client=self.bot)
-        await self.data.LinkHook.table.delete_where(channelid=channel.id)
-        await self.data.LinkHook.create(
-            channelid=channel.id,
-            webhookid=hook.id,
-            token=hook.token,
-        )
+        existing = await self.data.LionHook.fetch(channel.id)
+        if existing:
+            await existing.update(webhookid=hook.id, token=hook.token)
+        else:
+            await self.data.LinkHook.create(
+                channelid=channel.id,
+                webhookid=hook.id,
+                token=hook.token,
+            )
         self.hooks[channel.id] = hook
         await ctx.reply(f"Webhook for {channel.mention} updated!")
