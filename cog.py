@@ -426,3 +426,21 @@ class VoiceFixCog(LionCog):
                 )
         # TODO: May want paging if over 25 links....
         await ctx.reply(embed=embed)
+
+    @linker_group.command(
+        name="webhook",
+        description='Manually configure the webhook for a given channel.'
+    )
+    async def linker_webhook(self, ctx: LionContext, channel: discord.abc.GuildChannel, webhook: str):
+        if not ctx.interaction:
+            return
+
+        hook = discord.Webhook.from_url(webhook, client=self.bot)
+        await self.data.LinkHook.table.delete_where(channelid=channel.id)
+        await self.data.LinkHook.create(
+            channelid=channel.id,
+            webhookid=hook.id,
+            token=hook.token,
+        )
+        self.hooks[channel.id] = hook
+        await ctx.reply(f"Webhook for {channel.mention} updated!")
