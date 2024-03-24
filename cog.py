@@ -436,7 +436,7 @@ class VoiceFixCog(LionCog):
             return
 
         hook = discord.Webhook.from_url(webhook, client=self.bot)
-        existing = await self.data.LionHook.fetch(channel.id)
+        existing = await self.data.LinkHook.fetch(channel.id)
         if existing:
             await existing.update(webhookid=hook.id, token=hook.token)
         else:
