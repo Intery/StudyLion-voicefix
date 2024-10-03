@@ -29,12 +29,6 @@ async def prepare_attachments(attachments: list[discord.Attachment]):
 
 async def prepare_embeds(message: discord.Message):
     embeds = [embed for embed in message.embeds if embed.type == 'rich']
-    if message.reference:
-        embed = discord.Embed(
-            colour=discord.Colour.dark_gray(),
-            description=f"Reply to {message.reference.jump_url}"
-        )
-        embeds.append(embed)
     return embeds
 
 
@@ -112,11 +106,37 @@ class VoiceFixCog(LionCog):
                             else:
                                 files = []
 
+                            reference = None
+                            if message.reference:
+                                # Look up message from cache in this channel
+                                refid = message.reference.message_id
+                                if origid := self.wmessages.get(refid, None):
+                                    if sent := self.message_cache.get(origid, None):
+                                        this_ch_msg = next((msg for chid, msg in sent if chid == channelid), None)
+                                        if this_ch_msg:
+                                            reference = this_ch_msg
+                                # forward_str = f"-# Reply to {reference.jump_url}"
+                                original = message.reference.cached_message
+                                author = original.author.display_name if original else 'Unknown'
+                                forward_str = ''
+                                if reference:
+                                    forward_str = f"-# Replying to {author} in {reference.jump_url}"
+                                else:
+                                    forward_str = f"-# Replying to {author} in {message.reference.jump_url}"
+                            else:
+                                # forward_str = f"-# Forwarded from {message.jump_url}"
+                                forward_str = ''
+
+                            if len(message.content) + len(forward_str) < 2000:
+                                content = message.content + '\n' + forward_str
+                            else:
+                                content = message.content
+
                             hook = self.hooks[channelid]
                             avatar = message.author.avatar or message.author.default_avatar
                             msg = await hook.send(
-                                content=message.content,
                                 wait=True,
+                                content=content,
                                 username=message.author.display_name,
                                 avatar_url=avatar.url,
                                 embeds=await prepare_embeds(message),
