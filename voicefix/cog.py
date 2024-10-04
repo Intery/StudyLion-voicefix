@@ -106,37 +106,11 @@ class VoiceFixCog(LionCog):
                             else:
                                 files = []
 
-                            reference = None
-                            if message.reference:
-                                # Look up message from cache in this channel
-                                refid = message.reference.message_id
-                                if origid := self.wmessages.get(refid, None):
-                                    if sent := self.message_cache.get(origid, None):
-                                        this_ch_msg = next((msg for chid, msg in sent if chid == channelid), None)
-                                        if this_ch_msg:
-                                            reference = this_ch_msg
-                                # forward_str = f"-# Reply to {reference.jump_url}"
-                                original = message.reference.cached_message
-                                author = original.author.display_name if original else 'Unknown'
-                                forward_str = ''
-                                if reference:
-                                    forward_str = f"-# Replying to {author} in {reference.jump_url}"
-                                else:
-                                    forward_str = f"-# Replying to {author} in {message.reference.jump_url}"
-                            else:
-                                # forward_str = f"-# Forwarded from {message.jump_url}"
-                                forward_str = ''
-
-                            if len(message.content) + len(forward_str) < 2000:
-                                content = message.content + '\n' + forward_str
-                            else:
-                                content = message.content
-
                             hook = self.hooks[channelid]
                             avatar = message.author.avatar or message.author.default_avatar
                             msg = await hook.send(
                                 wait=True,
-                                content=content,
+                                content=self.prepare_content(message, channelid),
                                 username=message.author.display_name,
                                 avatar_url=avatar.url,
                                 embeds=await prepare_embeds(message),
@@ -152,10 +126,42 @@ class VoiceFixCog(LionCog):
 
                     self.message_cache[message.id] = sent
                     logger.info(f"Forwarded message {message.id}")
-        
+
+    def prepare_content(self, message, target_chid):
+        reference = None
+        if message.reference:
+            # Look up message from cache in this channel
+            refid = message.reference.message_id
+            if origid := self.wmessages.get(refid, None):
+                if sent := self.message_cache.get(origid, None):
+                    this_ch_msg = next(
+                        (msg for chid, msg in sent if chid == target_chid),
+                        None
+                    )
+                    if this_ch_msg:
+                        reference = this_ch_msg
+            original = message.reference.cached_message
+            author = original.author.display_name if original else 'Unknown'
+            forward_str = ''
+            if reference:
+                forward_str = f"-# Replying to {author} in {reference.jump_url}"
+            else:
+                forward_str = f"-# Replying to {author} in {message.reference.jump_url}"
+        else:
+            # forward_str = f"-# Forwarded from {message.jump_url}"
+            forward_str = ''
+
+        if len(message.content) + len(forward_str) < 2000:
+            content = message.content + '\n' + forward_str
+        else:
+            content = message.content
+
+        return content
 
     @LionCog.listener('on_message_edit')
     async def on_message_edit(self, before, after):
+        if before.webhook_id:
+            return
         async with self.lock:
             cached_sent = self.message_cache.pop(before.id, ())
             new_sent = []
@@ -163,7 +169,7 @@ class VoiceFixCog(LionCog):
                 try:
                     if msg.id != before.id:
                         msg = await msg.edit(
-                            content=after.content,
+                            content=self.prepare_content(after, cid),
                             embeds=await prepare_embeds(after),
                         )
                     new_sent.append((cid, msg))
