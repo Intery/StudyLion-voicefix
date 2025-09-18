@@ -107,11 +107,11 @@ class VoiceFixCog(LionCog):
                                 files = []
 
                             hook = self.hooks[channelid]
-                            avatar = message.author.avatar or message.author.default_avatar
+                            avatar = message.author.display_avatar or message.author.default_avatar
                             msg = await hook.send(
                                 wait=True,
                                 content=self.prepare_content(message, channelid),
-                                username=message.author.display_name,
+                                username=f"{message.author.display_name} [#{message.channel.name}]",
                                 avatar_url=avatar.url,
                                 embeds=await prepare_embeds(message),
                                 files=files,
