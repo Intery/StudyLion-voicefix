@@ -277,8 +277,11 @@ class VoiceFixCog(LionCog):
         maybe_channels = [
             channel1, channel2, channel3, channel4, channel5,
         ]
-        if channelid and channelid.isdigit():
-            channel = self.bot.get_channel(int(channelid))
+        if channelid:
+            if not channelid.isdigit():
+                return await ctx.error_reply("Channel id provided must be an integer!")
+            if not (channel := self.bot.get_channel(int(channelid))):
+                return await ctx.error_reply("Could not find a channel with the provided id!")
             maybe_channels.append(channel)
 
         channels = [channel for channel in maybe_channels if channel]
