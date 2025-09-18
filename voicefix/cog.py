@@ -130,18 +130,21 @@ class VoiceFixCog(LionCog):
     def prepare_content(self, message, target_chid):
         reference = None
         if message.reference:
+            original = message.reference.cached_message
+            author = original.author.display_name if original else 'Unknown'
+
             # Look up message from cache in this channel
             refid = message.reference.message_id
             if origid := self.wmessages.get(refid, None):
                 if sent := self.message_cache.get(origid, None):
-                    this_ch_msg = next(
-                        (msg for chid, msg in sent if chid == target_chid),
-                        None
-                    )
+                    this_ch_msg = None 
+                    for chid, msg in sent:
+                        if chid == target_chid:
+                            this_ch_msg = msg
+                        if msg.id == origid:
+                            author = msg.author.display_name
                     if this_ch_msg:
                         reference = this_ch_msg
-            original = message.reference.cached_message
-            author = original.author.display_name if original else 'Unknown'
             forward_str = ''
             if reference:
                 forward_str = f"-# Replying to {author} in {reference.jump_url}"
